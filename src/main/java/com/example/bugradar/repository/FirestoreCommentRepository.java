@@ -60,7 +60,7 @@ public class FirestoreCommentRepository {
                 Comment comment = document.toObject(Comment.class);
                 // Convertim creationDateString înapoi la LocalDateTime
                 if (comment != null && comment.getCreationDateString() != null) {
-                    comment.setCreationDate(LocalDateTime.parse(comment.getCreationDateString()));
+                    comment.setCreationDate(LocalDateTime.parse(comment.getCreationDateString()).toString());
                 }
                 return Optional.ofNullable(comment);
             } else {
@@ -80,7 +80,7 @@ public class FirestoreCommentRepository {
                 Comment comment = document.toObject(Comment.class);
                 // Convertim creationDateString înapoi la LocalDateTime
                 if (comment.getCreationDateString() != null) {
-                    comment.setCreationDate(LocalDateTime.parse(comment.getCreationDateString()));
+                    comment.setCreationDate(LocalDateTime.parse(comment.getCreationDateString()).toString());
                 }
                 comments.add(comment);
             }
@@ -107,7 +107,7 @@ public class FirestoreCommentRepository {
                 Comment comment = document.toObject(Comment.class);
                 // Convertim creationDateString înapoi la LocalDateTime
                 if (comment.getCreationDateString() != null) {
-                    comment.setCreationDate(LocalDateTime.parse(comment.getCreationDateString()));
+                    comment.setCreationDate(LocalDateTime.parse(comment.getCreationDateString()).toString());
                 }
                 comments.add(comment);
             }
@@ -128,7 +128,7 @@ public class FirestoreCommentRepository {
                 Comment comment = document.toObject(Comment.class);
                 // Convertim creationDateString înapoi la LocalDateTime
                 if (comment.getCreationDateString() != null) {
-                    comment.setCreationDate(LocalDateTime.parse(comment.getCreationDateString()));
+                    comment.setCreationDate(LocalDateTime.parse(comment.getCreationDateString()).toString());
                 }
                 comments.add(comment);
             }

@@ -16,12 +16,12 @@ public class Comment {
     private String authorId;
     private String text;
     private String imageUrl;
-    private LocalDateTime creationDate;
+    private String creationDate;
     private int voteCount = 0;
 
     // În Firestore, LocalDateTime nu este serializat direct, așa că putem adăuga aceste metode helper
     public void setCreationDateString(String dateString) {
-        this.creationDate = LocalDateTime.parse(dateString);
+        this.creationDate = dateString;
     }
 
     public String getCreationDateString() {

@@ -41,7 +41,7 @@ public class CommentService {
         comment.setAuthorId(authorId);
         comment.setText(commentDto.getText());
         comment.setImageUrl(commentDto.getImageUrl());
-        comment.setCreationDate(LocalDateTime.now());
+        comment.setCreationDate(LocalDateTime.now().toString());
 
         return commentRepository.save(comment);
     }
