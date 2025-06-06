@@ -1,6 +1,5 @@
 package com.example.bugradar.service;
 
-
 import com.example.bugradar.dto.CommentDto;
 import com.example.bugradar.entity.Bug;
 import com.example.bugradar.entity.BugStatus;
@@ -18,16 +17,28 @@ public class CommentService {
 
     private final FirestoreCommentRepository commentRepository;
     private final FirestoreBugRepository bugRepository;
+    private final ModeratorService moderatorService;
 
     @Autowired
-    public CommentService(FirestoreCommentRepository commentRepository, FirestoreBugRepository bugRepository) {
+    public CommentService(FirestoreCommentRepository commentRepository,
+                          FirestoreBugRepository bugRepository,
+                          ModeratorService moderatorService) {
         this.commentRepository = commentRepository;
         this.bugRepository = bugRepository;
+        this.moderatorService = moderatorService;
     }
 
     public Comment createComment(CommentDto commentDto, String bugId, String authorId) {
+        // Verificăm dacă utilizatorul este banat
+        moderatorService.checkUserAccess(authorId);
+
         Bug bug = bugRepository.findById(bugId)
                 .orElseThrow(() -> new RuntimeException("Bug not found"));
+
+        // Verificăm dacă bug-ul este în status SOLVED
+        if (bug.getStatus() == BugStatus.SOLVED) {
+            throw new RuntimeException("Cannot add comments to a solved bug");
+        }
 
         // Actualizăm status-ul bug-ului la IN_PROGRESS dacă este primul comentariu
         if (bug.getStatus() == BugStatus.RECEIVED) {
@@ -56,10 +67,13 @@ public class CommentService {
     }
 
     public Comment updateComment(String id, CommentDto commentDto, String currentUserId) {
+        // Verificăm dacă utilizatorul este banat
+        moderatorService.checkUserAccess(currentUserId);
+
         Comment comment = getCommentById(id);
 
-        // Verificăm dacă utilizatorul curent este autorul
-        if (!comment.getAuthorId().equals(currentUserId)) {
+        // Verificăm dacă utilizatorul curent este autorul SAU moderator
+        if (!comment.getAuthorId().equals(currentUserId) && !moderatorService.isModerator(currentUserId)) {
             throw new RuntimeException("Not authorized to update this comment");
         }
 
@@ -70,13 +84,36 @@ public class CommentService {
     }
 
     public void deleteComment(String id, String currentUserId) {
+        // Verificăm dacă utilizatorul este banat
+        moderatorService.checkUserAccess(currentUserId);
+
         Comment comment = getCommentById(id);
 
-        // Verificăm dacă utilizatorul curent este autorul
-        if (!comment.getAuthorId().equals(currentUserId)) {
+        // Verificăm dacă utilizatorul curent este autorul SAU moderator
+        if (!comment.getAuthorId().equals(currentUserId) && !moderatorService.isModerator(currentUserId)) {
             throw new RuntimeException("Not authorized to delete this comment");
         }
 
         commentRepository.deleteById(id);
+    }
+
+    /**
+     * Marchează un bug ca fiind rezolvat (doar autorul bug-ului poate face asta)
+     * BONUS: Feature din cerință - când autorul acceptă comentariile
+     */
+    public void markBugAsSolved(String bugId, String userId) {
+        // Verificăm dacă utilizatorul este banat
+        moderatorService.checkUserAccess(userId);
+
+        Bug bug = bugRepository.findById(bugId)
+                .orElseThrow(() -> new RuntimeException("Bug not found"));
+
+        // Doar autorul poate marca bug-ul ca rezolvat
+        if (!bug.getAuthorId().equals(userId)) {
+            throw new RuntimeException("Only the bug author can mark it as solved");
+        }
+
+        bug.setStatus(BugStatus.SOLVED);
+        bugRepository.save(bug);
     }
 }

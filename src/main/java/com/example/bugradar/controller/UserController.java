@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -31,7 +32,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable String id) {
-        User user = userService.getUserById(id);
+        User user = userService.getUserWithScore(id); // Include scorul în răspuns
         return ResponseEntity.ok(user);
     }
 
@@ -41,29 +42,77 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
+    /**
+     * BONUS 1: Leaderboard - utilizatori sortați după scor
+     */
+    @GetMapping("/leaderboard")
+    public ResponseEntity<List<User>> getLeaderboard() {
+        List<User> users = userService.getUsersByScore();
+        return ResponseEntity.ok(users);
+    }
+
+    /**
+     * BONUS 1: Statistici utilizator (include scorul)
+     */
+    @GetMapping("/{id}/stats")
+    public ResponseEntity<UserService.UserStats> getUserStats(@PathVariable String id) {
+        UserService.UserStats stats = userService.getUserStats(id);
+        return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Profilul utilizatorului curent
+     */
+    @GetMapping("/me")
+    public ResponseEntity<User> getCurrentUser(Authentication authentication) {
+        String uid = (String) authentication.getPrincipal();
+        User user = userService.getUserWithScore(uid);
+        return ResponseEntity.ok(user);
+    }
+
+    /**
+     * Statisticile utilizatorului curent
+     */
+    @GetMapping("/me/stats")
+    public ResponseEntity<UserService.UserStats> getCurrentUserStats(Authentication authentication) {
+        String uid = (String) authentication.getPrincipal();
+        UserService.UserStats stats = userService.getUserStats(uid);
+        return ResponseEntity.ok(stats);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody UserDto userDto, Authentication authentication) {
         String uid = (String) authentication.getPrincipal();
-
-        // Verificăm dacă utilizatorul încearcă să își actualizeze propriul profil
-        if (!id.equals(uid)) {
-            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-        }
-
-        User updatedUser = userService.updateUser(id, userDto);
+        User updatedUser = userService.updateUser(id, userDto, uid); // Actualizat să folosească noua metodă
         return ResponseEntity.ok(updatedUser);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable String id, Authentication authentication) {
         String uid = (String) authentication.getPrincipal();
-
-        // Verificăm dacă utilizatorul încearcă să își șteargă propriul profil
-        if (!id.equals(uid)) {
-            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-        }
-
-        userService.deleteUser(id);
+        userService.deleteUser(id, uid); // Actualizat să folosească noua metodă
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    /**
+     * Verifică accesul utilizatorului (pentru debugging)
+     */
+    @GetMapping("/check-access")
+    public ResponseEntity<Map<String, Object>> checkAccess(Authentication authentication) {
+        try {
+            String uid = (String) authentication.getPrincipal();
+            userService.validateUserAccess(uid);
+
+            User user = userService.getUserById(uid);
+            return ResponseEntity.ok(Map.of(
+                    "access", "granted",
+                    "isBanned", user.isBanned(),
+                    "isModerator", user.isModerator(),
+                    "score", user.getScore()
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("access", "denied", "reason", e.getMessage()));
+        }
     }
 }

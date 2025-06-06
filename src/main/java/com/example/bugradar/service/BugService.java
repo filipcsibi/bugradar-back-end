@@ -10,9 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,14 +18,21 @@ public class BugService {
 
     private final FirestoreBugRepository bugRepository;
     private final TagService tagService;
+    private final ModeratorService moderatorService;
 
     @Autowired
-    public BugService(FirestoreBugRepository bugRepository, TagService tagService) {
+    public BugService(FirestoreBugRepository bugRepository,
+                      TagService tagService,
+                      ModeratorService moderatorService) {
         this.bugRepository = bugRepository;
         this.tagService = tagService;
+        this.moderatorService = moderatorService;
     }
 
     public Bug createBug(BugDto bugDto, String authorId) {
+        // Verificăm dacă utilizatorul este banat
+        moderatorService.checkUserAccess(authorId);
+
         Bug bug = new Bug();
         bug.setAuthorId(authorId);
         bug.setTitle(bugDto.getTitle());
@@ -41,7 +46,7 @@ public class BugService {
         if (bugDto.getTagNames() != null && !bugDto.getTagNames().isEmpty()) {
             tags = bugDto.getTagNames().stream()
                     .map(tagService::findOrCreateTag)
-                    .collect(Collectors.toList());  // Folosim toList în loc de toSet
+                    .collect(Collectors.toList());
         }
         bug.setTags(tags);
 
@@ -58,10 +63,13 @@ public class BugService {
     }
 
     public Bug updateBug(String id, BugDto bugDto, String currentUserId) {
+        // Verificăm dacă utilizatorul este banat
+        moderatorService.checkUserAccess(currentUserId);
+
         Bug bug = getBugById(id);
 
-        // Verificăm dacă utilizatorul curent este autorul
-        if (!bug.getAuthorId().equals(currentUserId)) {
+        // Verificăm dacă utilizatorul curent este autorul SAU moderator
+        if (!bug.getAuthorId().equals(currentUserId) && !moderatorService.isModerator(currentUserId)) {
             throw new RuntimeException("Not authorized to update this bug");
         }
 
@@ -73,17 +81,21 @@ public class BugService {
         if (bugDto.getTagNames() != null && !bugDto.getTagNames().isEmpty()) {
             List<Tag> tags = bugDto.getTagNames().stream()
                     .map(tagService::findOrCreateTag)
-                    .collect(Collectors.toList());  // Folosim toList în loc de toSet
+                    .collect(Collectors.toList());
             bug.setTags(tags);
         }
 
         return bugRepository.save(bug);
     }
+
     public void deleteBug(String id, String currentUserId) {
+        // Verificăm dacă utilizatorul este banat
+        moderatorService.checkUserAccess(currentUserId);
+
         Bug bug = getBugById(id);
 
-        // Verificăm dacă utilizatorul curent este autorul
-        if (!bug.getAuthorId().equals(currentUserId)) {
+        // Verificăm dacă utilizatorul curent este autorul SAU moderator
+        if (!bug.getAuthorId().equals(currentUserId) && !moderatorService.isModerator(currentUserId)) {
             throw new RuntimeException("Not authorized to delete this bug");
         }
 
@@ -104,6 +116,9 @@ public class BugService {
     }
 
     public List<Bug> getMyBugs(String currentUserId) {
+        // Verificăm dacă utilizatorul este banat
+        moderatorService.checkUserAccess(currentUserId);
+
         return bugRepository.findByAuthorId(currentUserId);
     }
 }
